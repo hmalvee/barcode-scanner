@@ -1,0 +1,371 @@
+.app {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.scanner-container {
+  width: 100%;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: 95vh;
+}
+
+h1 {
+  text-align: center;
+  padding: 24px;
+  color: #333;
+  font-size: 2rem;
+  font-weight: 600;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  margin: 0;
+}
+
+.video-wrapper {
+  width: 100%;
+  position: relative;
+  background: #000;
+  aspect-ratio: 16 / 9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.video-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1); /* Mirror the video for better UX */
+}
+
+.scanning-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.scanning-line {
+  width: 80%;
+  height: 2px;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    #4caf50 20%, 
+    #4caf50 80%, 
+    transparent 100%);
+  animation: scanning 2s linear infinite;
+  box-shadow: 0 0 10px #4caf50;
+}
+
+@keyframes scanning {
+  0% {
+    transform: translateY(-40%);
+  }
+  50% {
+    transform: translateY(40%);
+  }
+  100% {
+    transform: translateY(-40%);
+  }
+}
+
+.scanning-text {
+  position: absolute;
+  bottom: 20px;
+  color: white;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.video-placeholder {
+  color: white;
+  text-align: center;
+  padding: 40px;
+}
+
+.video-placeholder p {
+  font-size: 1.2rem;
+  opacity: 0.8;
+}
+
+.error-message {
+  background: #fee;
+  color: #c33;
+  padding: 12px 20px;
+  margin: 16px;
+  border-radius: 8px;
+  border-left: 4px solid #c33;
+}
+
+.camera-selector {
+  padding: 16px 20px;
+  background: #f9f9f9;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-top: 1px solid #eee;
+}
+
+.camera-selector label {
+  font-weight: 600;
+  color: #333;
+  font-size: 0.95rem;
+}
+
+.camera-select {
+  flex: 1;
+  padding: 8px 12px;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  background: white;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.camera-select:hover {
+  border-color: #667eea;
+}
+
+.camera-select:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.controls {
+  padding: 20px;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn:disabled:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.btn {
+  padding: 12px 24px;
+  font-size: 1rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.btn-secondary {
+  background: #666;
+  color: white;
+}
+
+.btn-copy {
+  background: #4caf50;
+  color: white;
+}
+
+.btn-clear {
+  background: #f44336;
+  color: white;
+}
+
+.scanned-list-container {
+  border-top: 2px solid #eee;
+  display: flex;
+  flex-direction: column;
+  max-height: 400px;
+  overflow: hidden;
+}
+
+.scanned-list-header {
+  padding: 16px 20px;
+  background: #f5f5f5;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.scanned-list-header h2 {
+  margin: 0;
+  color: #333;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.header-actions .btn {
+  padding: 8px 16px;
+  font-size: 0.9rem;
+}
+
+.scanned-list {
+  overflow-y: auto;
+  padding: 12px;
+  flex: 1;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 40px;
+  color: #999;
+}
+
+.empty-state p {
+  font-size: 1.1rem;
+}
+
+.scanned-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  margin-bottom: 8px;
+  background: #f9f9f9;
+  border-radius: 8px;
+  border-left: 4px solid #667eea;
+  transition: all 0.2s;
+}
+
+.scanned-item:hover {
+  background: #f0f0f0;
+  transform: translateX(4px);
+}
+
+.scanned-item-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.scanned-text {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #333;
+  word-break: break-all;
+  font-family: 'Courier New', monospace;
+}
+
+.scanned-time {
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.btn-remove {
+  background: #ff4444;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  flex-shrink: 0;
+  margin-left: 12px;
+}
+
+.btn-remove:hover {
+  background: #cc0000;
+  transform: scale(1.1);
+}
+
+/* Scrollbar styling */
+.scanned-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.scanned-list::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.scanned-list::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+.scanned-list::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .app {
+    padding: 10px;
+  }
+
+  .scanner-container {
+    max-height: 100vh;
+  }
+
+  h1 {
+    font-size: 1.5rem;
+    padding: 16px;
+  }
+
+  .scanned-list-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .header-actions {
+    width: 100%;
+  }
+
+  .header-actions .btn {
+    flex: 1;
+  }
+}
