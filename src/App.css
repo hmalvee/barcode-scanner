@@ -2,7 +2,7 @@
   width: 100%;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 20px;
+  padding: 10px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -11,12 +11,13 @@
 .scanner-container {
   width: 100%;
   background: white;
-  border-radius: 16px;
+  border-radius: 12px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  max-height: 95vh;
+  max-height: 100vh;
+  height: 100vh;
 }
 
 h1 {
@@ -34,7 +35,8 @@ h1 {
   width: 100%;
   position: relative;
   background: #000;
-  aspect-ratio: 16 / 9;
+  flex: 1;
+  min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -45,7 +47,13 @@ h1 {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transform: scaleX(-1); /* Mirror the video for better UX */
+  /* Don't mirror on mobile - back camera doesn't need mirroring */
+}
+
+@media (min-width: 769px) {
+  .video-preview {
+    transform: scaleX(-1); /* Mirror the video for better UX on desktop */
+  }
 }
 
 .scanning-overlay {
@@ -100,11 +108,21 @@ h1 {
   color: white;
   text-align: center;
   padding: 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .video-placeholder p {
   font-size: 1.2rem;
   opacity: 0.8;
+  margin: 0;
+}
+
+.video-placeholder .mobile-hint {
+  font-size: 0.9rem;
+  opacity: 0.6;
+  font-style: italic;
 }
 
 .error-message {
@@ -155,8 +173,23 @@ h1 {
 .controls {
   padding: 20px;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
   gap: 12px;
+}
+
+.scan-tips {
+  text-align: center;
+  padding: 8px 16px;
+  background: #f0f7ff;
+  border-radius: 8px;
+  margin-top: 8px;
+}
+
+.scan-tips p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #555;
 }
 
 .btn:disabled {
@@ -344,28 +377,58 @@ h1 {
 /* Responsive design */
 @media (max-width: 768px) {
   .app {
-    padding: 10px;
+    padding: 0;
+    max-width: 100%;
   }
 
   .scanner-container {
+    border-radius: 0;
     max-height: 100vh;
+    height: 100vh;
   }
 
   h1 {
-    font-size: 1.5rem;
-    padding: 16px;
+    font-size: 1.3rem;
+    padding: 12px 16px;
+  }
+
+  .video-wrapper {
+    flex: 1;
+    min-height: 200px;
+  }
+
+  .scanned-list-container {
+    max-height: 30vh;
+    min-height: 150px;
   }
 
   .scanned-list-header {
     flex-direction: column;
     align-items: flex-start;
+    padding: 12px;
+  }
+
+  .scanned-list-header h2 {
+    font-size: 1rem;
   }
 
   .header-actions {
     width: 100%;
+    margin-top: 8px;
   }
 
   .header-actions .btn {
     flex: 1;
+    padding: 10px 12px;
+    font-size: 0.85rem;
+  }
+
+  .controls {
+    padding: 12px;
+  }
+
+  .btn {
+    padding: 14px 20px;
+    font-size: 0.95rem;
   }
 }

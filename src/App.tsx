@@ -58,18 +58,42 @@ function App() {
     try {
       setIsLoading(true)
       setError(null)
-      
-      // First, request camera permission by trying to access it
+
+      if (!codeReaderRef.current) {
+        const hints = new Map()
+        hints.set(DecodeHintType.TRY_HARDER, true)
+        hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+          BarcodeFormat.EAN_13,
+          BarcodeFormat.EAN_8,
+          BarcodeFormat.UPC_A,
+          BarcodeFormat.UPC_E,
+          BarcodeFormat.CODE_128,
+          BarcodeFormat.CODE_39,
+          BarcodeFormat.CODE_93,
+          BarcodeFormat.CODABAR,
+          BarcodeFormat.ITF,
+          BarcodeFormat.QR_CODE,
+          BarcodeFormat.DATA_MATRIX,
+          BarcodeFormat.PDF_417,
+          BarcodeFormat.AZTEC
+        ])
+        codeReaderRef.current = new BrowserMultiFormatReader(hints)
+      }
+
+      // Request camera permission with back camera preference for mobile
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true })
+        const constraints: MediaStreamConstraints = {
+          video: {
+            facingMode: { ideal: 'environment' }, // Prefer back camera
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          }
+        }
+        const stream = await navigator.mediaDevices.getUserMedia(constraints)
         // Stop the stream immediately, we just needed permission
         stream.getTracks().forEach(track => track.stop())
       } catch (permErr) {
         throw new Error('Camera permission denied. Please allow camera access and try again.')
-      }
-
-      if (!codeReaderRef.current) {
-        codeReaderRef.current = new BrowserMultiFormatReader()
       }
 
       const devices = await codeReaderRef.current.listVideoInputDevices()
@@ -83,8 +107,23 @@ function App() {
         label: device.label || `Camera ${devices.indexOf(device) + 1}`
       }))
 
+      // Prefer back camera (environment) - usually labeled with "back" or "rear" or is the last one
+      let preferredCamera = cameraList[0]
+      const backCamera = cameraList.find(cam => 
+        cam.label.toLowerCase().includes('back') || 
+        cam.label.toLowerCase().includes('rear') ||
+        cam.label.toLowerCase().includes('environment')
+      )
+      
+      if (backCamera) {
+        preferredCamera = backCamera
+      } else if (cameraList.length > 1) {
+        // On mobile, back camera is often the last one
+        preferredCamera = cameraList[cameraList.length - 1]
+      }
+
       setAvailableCameras(cameraList)
-      setSelectedCameraId(cameraList[0].deviceId)
+      setSelectedCameraId(preferredCamera.deviceId)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to detect cameras'
       setError(errorMessage)
@@ -100,6 +139,7 @@ function App() {
     try {
       setError(null)
       setIsScanning(true)
+      setScanStatus('Starting camera...')
 
       // Reload cameras if none are available
       if (availableCameras.length === 0) {
@@ -115,38 +155,85 @@ function App() {
         throw new Error('No camera device selected')
       }
 
-      // Ensure video element has proper attributes
       const video = videoRef.current
+      
+      // Use optimal video constraints for mobile with higher resolution and autofocus
+      const videoConstraints: MediaTrackConstraints = {
+        deviceId: { exact: deviceId },
+        facingMode: { ideal: 'environment' }, // Prefer back camera
+        width: { ideal: 1920, min: 1280 },
+        height: { ideal: 1080, min: 720 }
+      }
+      
+      // Try to enable autofocus (may not work on all devices)
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          video: videoConstraints 
+        })
+        const track = stream.getVideoTracks()[0]
+        if (track && 'getCapabilities' in track) {
+          const capabilities = track.getCapabilities()
+          if (capabilities.focusMode && capabilities.focusMode.includes('continuous')) {
+            await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] })
+          }
+        }
+        video.srcObject = stream
+      } catch (streamErr) {
+        // Fallback to simpler constraints
+        const fallbackStream = await navigator.mediaDevices.getUserMedia({ 
+          video: { deviceId: { exact: deviceId }, facingMode: { ideal: 'environment' } }
+        })
+        video.srcObject = fallbackStream
+      }
+
       video.setAttribute('autoplay', 'true')
       video.setAttribute('playsinline', 'true')
       video.setAttribute('muted', 'true')
-
-      setScanStatus('Initializing camera...')
-
-      // Wait for video to be ready
-      const waitForVideo = () => {
-        return new Promise<void>((resolve) => {
-          if (video.readyState >= 2) {
+      
+      // Wait for video to be ready (reduced timeout for faster startup)
+      await new Promise<void>((resolve) => {
+        if (video.readyState >= 2) {
+          resolve()
+        } else {
+          const onLoadedMetadata = () => {
+            video.removeEventListener('loadedmetadata', onLoadedMetadata)
             resolve()
-          } else {
-            video.onloadedmetadata = () => resolve()
-            // Timeout after 5 seconds
-            setTimeout(() => resolve(), 5000)
           }
-        })
-      }
+          video.addEventListener('loadedmetadata', onLoadedMetadata)
+          // Reduced timeout to 3 seconds
+          setTimeout(() => {
+            video.removeEventListener('loadedmetadata', onLoadedMetadata)
+            resolve()
+          }, 3000)
+        }
+      })
 
-      await waitForVideo()
       setScanStatus('Ready - Point camera at barcode')
 
-      // Start decoding with better configuration
+      // Start decoding with continuous scanning
+      let lastScanTime = 0
+      const scanCooldown = 1500 // Prevent duplicate scans within 1.5 seconds
+      let scanAttempts = 0
+
+      // Use decodeFromVideoDevice with better error handling
+      // Note: ZXing scans continuously, so we don't need manual intervals
       codeReaderRef.current.decodeFromVideoDevice(
         deviceId,
         video,
         (result, err) => {
+          scanAttempts++
+          
           if (result) {
+            const now = Date.now()
             const text = result.getText()
-            console.log('Barcode detected:', text)
+            
+            // Prevent rapid duplicate scans
+            if (now - lastScanTime < scanCooldown && scannedCodes.some(code => code.text === text)) {
+              return
+            }
+            
+            lastScanTime = now
+            console.log('✅ Barcode detected:', text, 'Format:', result.getBarcodeFormat())
             setScanStatus('Barcode detected!')
             
             // Check if this barcode was already scanned (avoid duplicates)
@@ -162,33 +249,45 @@ function App() {
               
               // Visual feedback - briefly highlight
               video.style.border = '4px solid #4caf50'
+              video.style.boxShadow = '0 0 20px #4caf50'
               setTimeout(() => {
                 video.style.border = 'none'
+                video.style.boxShadow = 'none'
                 setScanStatus('Ready - Point camera at barcode')
-              }, 1000)
+              }, 800)
             } else {
-              setScanStatus('Duplicate barcode - already scanned')
+              setScanStatus('Already scanned')
               setTimeout(() => {
                 setScanStatus('Ready - Point camera at barcode')
-              }, 1000)
+              }, 800)
             }
           }
+          
           if (err) {
             const errorName = (err as any).name
-            // Only log non-expected errors
+            // Log errors for debugging (but not the common "not found" errors)
             if (errorName && 
                 !errorName.includes('NotFoundError') && 
                 !errorName.includes('No QR Code') &&
-                !errorName.includes('NotFoundException')) {
-              console.error('Scan error:', err)
+                !errorName.includes('NotFoundException') &&
+                !errorName.includes('No MultiFormat Readers')) {
+              // Log every 50th attempt to avoid spam
+              if (scanAttempts % 50 === 0) {
+                console.log('Scan attempt', scanAttempts, ':', errorName)
+              }
             }
           }
         }
       )
+      
+      // Log that scanning has started
+      console.log('📷 Barcode scanning started with device:', deviceId)
+      console.log('Video dimensions:', video.videoWidth, 'x', video.videoHeight)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to start camera'
       setError(errorMessage)
       setIsScanning(false)
+      setScanStatus('')
       console.error('Start scanning error:', err)
     }
   }
@@ -196,9 +295,17 @@ function App() {
   const stopScanning = () => {
     if (codeReaderRef.current) {
       codeReaderRef.current.reset()
-      setIsScanning(false)
-      setScanStatus('')
     }
+    
+    // Stop video stream
+    if (videoRef.current && videoRef.current.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream
+      stream.getTracks().forEach(track => track.stop())
+      videoRef.current.srcObject = null
+    }
+    
+    setIsScanning(false)
+    setScanStatus('')
   }
 
   const copyAll = async () => {
@@ -258,6 +365,7 @@ function App() {
           {!isScanning && (
             <div className="video-placeholder">
               <p>Click "Start Scanning" to begin</p>
+              <p className="mobile-hint">Using back camera on mobile</p>
             </div>
           )}
         </div>
@@ -299,9 +407,14 @@ function App() {
               )}
             </>
           ) : (
-            <button onClick={stopScanning} className="btn btn-secondary">
-              Stop Scanning
-            </button>
+            <>
+              <button onClick={stopScanning} className="btn btn-secondary">
+                Stop Scanning
+              </button>
+              <div className="scan-tips">
+                <p>💡 Tips: Hold steady, ensure good lighting, keep barcode flat</p>
+              </div>
+            </>
           )}
         </div>
 
