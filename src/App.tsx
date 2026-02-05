@@ -172,9 +172,14 @@ function App() {
         })
         const track = stream.getVideoTracks()[0]
         if (track && 'getCapabilities' in track) {
-          const capabilities = track.getCapabilities()
-          if (capabilities.focusMode && capabilities.focusMode.includes('continuous')) {
-            await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] })
+          const capabilities = track.getCapabilities() as any
+          if (capabilities && capabilities.focusMode && Array.isArray(capabilities.focusMode) && capabilities.focusMode.includes('continuous')) {
+            try {
+              await track.applyConstraints({ advanced: [{ focusMode: 'continuous' } as any] })
+            } catch (constraintErr) {
+              // Autofocus not supported, continue without it
+              console.log('Autofocus not available on this device')
+            }
           }
         }
         video.srcObject = stream
