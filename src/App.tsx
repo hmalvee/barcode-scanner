@@ -23,9 +23,10 @@ function App() {
   const [scanStatus, setScanStatus] = useState<string>('')
   const videoRef = useRef<HTMLVideoElement>(null)
   const codeReaderRef = useRef<BrowserMultiFormatReader | null>(null)
+  const scannedCodesRef = useRef<ScannedCode[]>([])
 
   useEffect(() => {
-    // Configure the reader with hints for better detection
+    // Configure the reader with hints for better detection - BARCODES ONLY (no QR codes)
     const hints = new Map()
     hints.set(DecodeHintType.TRY_HARDER, true)
     hints.set(DecodeHintType.POSSIBLE_FORMATS, [
@@ -37,11 +38,8 @@ function App() {
       BarcodeFormat.CODE_39,
       BarcodeFormat.CODE_93,
       BarcodeFormat.CODABAR,
-      BarcodeFormat.ITF,
-      BarcodeFormat.QR_CODE,
-      BarcodeFormat.DATA_MATRIX,
-      BarcodeFormat.PDF_417,
-      BarcodeFormat.AZTEC
+      BarcodeFormat.ITF
+      // Removed QR_CODE, DATA_MATRIX, PDF_417, AZTEC - only barcodes
     ])
     
     codeReaderRef.current = new BrowserMultiFormatReader(hints)
@@ -229,28 +227,57 @@ function App() {
           scanAttempts++
           
           if (result) {
-            const now = Date.now()
+            const format = result.getBarcodeFormat()
             const text = result.getText()
             
+            // Only accept barcode formats (reject QR codes and 2D codes)
+            const barcodeFormats = [
+              BarcodeFormat.EAN_13,
+              BarcodeFormat.EAN_8,
+              BarcodeFormat.UPC_A,
+              BarcodeFormat.UPC_E,
+              BarcodeFormat.CODE_128,
+              BarcodeFormat.CODE_39,
+              BarcodeFormat.CODE_93,
+              BarcodeFormat.CODABAR,
+              BarcodeFormat.ITF
+            ]
+            
+            if (!barcodeFormats.includes(format)) {
+              // Ignore non-barcode formats (QR codes, etc.)
+              return
+            }
+            
+            const now = Date.now()
+            
+            // Get current scanned codes from ref (always up-to-date)
+            const currentScannedCodes = scannedCodesRef.current
+            
             // Prevent rapid duplicate scans
-            if (now - lastScanTime < scanCooldown && scannedCodes.some(code => code.text === text)) {
+            if (now - lastScanTime < scanCooldown && currentScannedCodes.some(code => code.text === text)) {
               return
             }
             
             lastScanTime = now
-            console.log('✅ Barcode detected:', text, 'Format:', result.getBarcodeFormat())
+            console.log('✅ Barcode detected:', text, 'Format:', format)
             setScanStatus('Barcode detected!')
             
-            // Check if this barcode was already scanned (avoid duplicates)
-            const isDuplicate = scannedCodes.some(code => code.text === text)
+            // Check if this barcode was already scanned (avoid duplicates) using ref
+            const isDuplicate = currentScannedCodes.some(code => code.text === text)
             
             if (!isDuplicate) {
               const newCode: ScannedCode = {
                 id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-                text,
+                text, // This is the barcode number
                 timestamp: new Date()
               }
-              setScannedCodes(prev => [...prev, newCode])
+              
+              // Update both state and ref
+              setScannedCodes(prev => {
+                const updated = [...prev, newCode]
+                scannedCodesRef.current = updated
+                return updated
+              })
               
               // Visual feedback - briefly highlight
               video.style.border = '4px solid #4caf50'
@@ -317,10 +344,11 @@ function App() {
     if (scannedCodes.length === 0) return
 
     const allText = scannedCodes.map(code => code.text).join('\n')
+    let copySuccess = false
     
     try {
       await navigator.clipboard.writeText(allText)
-      alert(`Copied ${scannedCodes.length} barcode(s) to clipboard!`)
+      copySuccess = true
     } catch (err) {
       // Fallback for older browsers
       const textArea = document.createElement('textarea')
@@ -330,21 +358,37 @@ function App() {
       document.body.appendChild(textArea)
       textArea.select()
       try {
-        document.execCommand('copy')
-        alert(`Copied ${scannedCodes.length} barcode(s) to clipboard!`)
+        copySuccess = document.execCommand('copy')
       } catch (fallbackErr) {
-        alert('Failed to copy to clipboard')
+        copySuccess = false
       }
       document.body.removeChild(textArea)
+    }
+    
+    // Show only one popup
+    if (copySuccess) {
+      alert(`Copied ${scannedCodes.length} barcode(s) to clipboard!`)
+    } else {
+      alert('Failed to copy to clipboard')
     }
   }
 
   const clearAll = () => {
     setScannedCodes([])
+    scannedCodesRef.current = []
   }
+  
+  // Keep ref in sync with state
+  useEffect(() => {
+    scannedCodesRef.current = scannedCodes
+  }, [scannedCodes])
 
   const removeCode = (id: string) => {
-    setScannedCodes(prev => prev.filter(code => code.id !== id))
+    setScannedCodes(prev => {
+      const updated = prev.filter(code => code.id !== id)
+      scannedCodesRef.current = updated
+      return updated
+    })
   }
 
   return (
